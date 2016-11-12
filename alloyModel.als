@@ -23,6 +23,8 @@ sig Car {
 	idNumber>0
 	batteryLevel>=0
 	batteryLevel<=100
+	(one unavailable: Unavailable | unavailable in carState) => ((one res: Reservation | res.reservedCar=this && res.expired.isFalse) || (one ride: Ride | ride.terminated.isFalse && ride.reservation.reservedCar=this))
+	(one outOfOrder: OutOfOrder | outOfOrder in carState) => ((no ride: Ride | ride.terminated.isFalse && ride.reservation.reservedCar=this) && (no res: Reservation | res.expired.isFalse && res.reservedCar=this))
 }
 
 fact CarIdNumbersAreUnique{
@@ -73,17 +75,15 @@ fact DifferentUsersCannotHaveSameRegistrationInfo{
 }
 
 sig Reservation {
-	reservationTimer: Int, //expressed in seconds
+	expired: Bool,
 	reservedCar: one Car,
 	reservingUser: one User
 }{
-	reservationTimer>=0
-	reservationTimer<=3600 //reservation timer of 1 hour
-	reservationTimer>0 => (one unavailable: Unavailable | unavailable in reservedCar.carState) //if a car is reserved, it is not available
+	expired.isFalse=> (one unavailable: Unavailable | unavailable in reservedCar.carState) //if a car is reserved, it is not available
 }
 
 sig SafeArea {
-	positions: set Position,
+	positions: disj set Position,
 	powerGridStation: set PowerStation 
 }{
 	all ps: powerGridStation | ps.position in positions //every power station position is contained in the set of positions of the safe area to which it belongs
@@ -121,7 +121,11 @@ sig Ride {
 	(endRidePosition != none) <=> terminated.isTrue //end ride position is saved only once the ride has been terminated
 	(accidentReport = none && terminated.isTrue) => (one sa: SafeArea | endRidePosition in sa.positions) //in order to terminate the ride the car must me parked in a safe area unless an accident occurs
 	(accidentReport != none) => terminated.isTrue //the accident report implies the termination of the ride
-	reservation.reservationTimer=0 //since the ride exists, the respective reservation is terminated
+	reservation.expired.isTrue //since the ride exists, the respective reservation is terminated
+}
+
+fact OneReservationIsRelatedAtMostToOneRide{
+	all res: Reservation | lone ride: Ride | ride.reservation=res
 }
 
 sig MoneySavingOption {
@@ -138,31 +142,49 @@ sig AccidentReport {
 	description: seq Char
 }
 
+fact AccidentReportMustBeRelatedToAnAccident {
+	all ar: AccidentReport | one ride:Ride | ride.accidentReport=ar
+}
+
 fact UsersCanJustRideOncePerTime {
-	no r1,r2: Ride | r1.terminated.isFalse && r2.terminated.isFalse && r1.reservation.reservingUser=r2.reservation.reservingUser
+	no disj r1,r2: Ride | r1.terminated.isFalse && r2.terminated.isFalse && r1.reservation.reservingUser=r2.reservation.reservingUser
 }
 
 fact PowerStationSelectedByMoneySavingOptionMustAlwaysBeAvailable{
 	all r: Ride | (r.terminated.isFalse && r.moneySavingOptionActivated.isTrue) => (r.moneySavingOptionInfo.selectedPowerStation.available.isTrue)
 }
 
-fact UnavailableCarsAreRunningOrReserved{
-	all c: Car | (one unavailable: Unavailable | unavailable in c.carState) => ((one r: Ride | r.terminated.isFalse && r.reservation.reservedCar=c) || (one res: Reservation | res.reservationTimer>0 && res.reservedCar=c))
+assert RunningsRidesAndReservationsCannotInvolveAvailableOrOutOfOrderCars{
+	all c: Car | (one available: Available | available in c.carState) || (one outOfOrder: OutOfOrder | outOfOrder in c.carState)  => ((no r: Ride | r.reservation.reservedCar=c && r.terminated.isFalse) && (no res: Reservation | res.expired.isFalse && res.reservedCar=c))
 }
 
-assert UsersHaveDifferentRegistrationInfo{
-	no u1,u2: User | u1.registrationInfo=u2.registrationInfo
+assert UnavailableCarsAreRunningOrReserved{
+	all c: Car | (one unavailable: Unavailable | unavailable in c.carState) => ((one r: Ride | r.terminated.isFalse && r.reservation.reservedCar=c) || (one res: Reservation | res.expired.isFalse && res.reservedCar=c))
 }
 
-fact RunningsRidesAndReservationsCannotInvolveAvailableOrOutOfOrderCars{
-	all c: Car | (one available: Available | available in c.carState) || (one outOfOrder: OutOfOrder | outOfOrder in c.carState)  => ((no r: Ride | r.reservation.reservedCar=c && r.terminated.isFalse) && (no res: Reservation | res.reservationTimer>0 && res.reservedCar=c))
+assert PowerStationsBelongToOneSafeAre{
+	no disj sa1,sa2: SafeArea | some ps: PowerStation | ps in sa1.powerGridStation && ps in sa2.powerGridStation
+}
+
+pred MoneySavingOptionBonusAchieved(r: Ride){
+	r.terminated.isTrue &&
+	r.moneySavingOptionActivated.isTrue &&
+	r.moneySavingOptionInfo.selectedPowerStation.position=r.endRidePosition &&
+	r.accidentReport=none
 }
 
 pred show {
+	#User=3
+	#Car=3
+	#SafeArea=2
+	#Ride=1
 	#PowerStation=1
 	#MoneySavingOption=1
+	some car: Car | no out: OutOfOrder | out in car.carState
+	some car: Car | one out: Unavailable | out in car.carState
+	some res: Reservation | res.expired.isFalse
 }
-
+ 
 run show
 	
 	
