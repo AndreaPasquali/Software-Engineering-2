@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+<alloy>
+
+<view>
+
+<defaultnode/>
+
+<defaultedge/>
+
+<node>
+   <type name="AccidentReport"/>
+   <type name="BatteryLevel"/>
+   <type name="Car"/>
+   <type name="CarState"/>
+   <type name="Int"/>
+   <type name="MoneySavingOption"/>
+   <type name="NonFineArea"/>
+   <type name="Position"/>
+   <type name="PowerStation"/>
+   <type name="RegistrationInfo"/>
+   <type name="Reservation"/>
+   <type name="Ride"/>
+   <type name="SafeArea"/>
+   <type name="String"/>
+   <type name="univ"/>
+   <type name="User"/>
+   <type name="boolean/Bool"/>
+   <type name="seq/Int"/>
+</node>
+
+<node visible="no">
+   <type name="Available"/>
+   <type name="Char"/>
+   <type name="CreditCard"/>
+   <type name="DrivingLicence"/>
+   <type name="Email"/>
+   <type name="High"/>
+   <type name="Low"/>
+   <type name="Medium"/>
+   <type name="Name"/>
+   <type name="OutOfOrder"/>
+   <type name="Password"/>
+   <type name="PhoneNumber"/>
+   <type name="Ssn"/>
+   <type name="Surname"/>
+   <type name="Unavailable"/>
+   <type name="Zero"/>
+   <type name="boolean/False"/>
+   <type name="boolean/True"/>
+</node>
+
+<edge visible="no" attribute="no">
+   <relation name="description"> <type name="AccidentReport"/> <type name="seq/Int"/> <type name="Char"/> </relation>
+</edge>
+
+<edge visible="no" attribute="yes">
+   <relation name="available"> <type name="PowerStation"/> <type name="boolean/Bool"/> </relation>
+   <relation name="batteryLevel"> <type name="Car"/> <type name="BatteryLevel"/> </relation>
+   <relation name="carState"> <type name="Car"/> <type name="CarState"/> </relation>
+   <relation name="creditCardNumber"> <type name="RegistrationInfo"/> <type name="CreditCard"/> </relation>
+   <relation name="drivingLicenceNumber"> <type name="RegistrationInfo"/> <type name="DrivingLicence"/> </relation>
+   <relation name="duration"> <type name="Ride"/> <type name="Int"/> </relation>
+   <relation name="email"> <type name="RegistrationInfo"/> <type name="Email"/> </relation>
+   <relation name="endRideBatteryLevel"> <type name="Ride"/> <type name="BatteryLevel"/> </relation>
+   <relation name="endRideIsInCharge"> <type name="Ride"/> <type name="boolean/Bool"/> </relation>
+   <relation name="expired"> <type name="Reservation"/> <type name="boolean/Bool"/> </relation>
+   <relation name="idNumber"> <type name="Car"/> <type name="Int"/> </relation>
+   <relation name="inCharge"> <type name="Car"/> <type name="boolean/Bool"/> </relation>
+   <relation name="moneySavingOptionActivated"> <type name="Ride"/> <type name="boolean/Bool"/> </relation>
+   <relation name="name"> <type name="RegistrationInfo"/> <type name="Name"/> </relation>
+   <relation name="passengers"> <type name="Ride"/> <type name="Int"/> </relation>
+   <relation name="password"> <type name="User"/> <type name="Password"/> </relation>
+   <relation name="phoneNumber"> <type name="RegistrationInfo"/> <type name="PhoneNumber"/> </relation>
+   <relation name="ssn"> <type name="RegistrationInfo"/> <type name="Ssn"/> </relation>
+   <relation name="surname"> <type name="RegistrationInfo"/> <type name="Surname"/> </relation>
+   <relation name="terminated"> <type name="Ride"/> <type name="boolean/Bool"/> </relation>
+   <relation name="totalPrice"> <type name="Ride"/> <type name="Int"/> </relation>
+</edge>
+
+</view>
+
+</alloy>
