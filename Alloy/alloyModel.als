@@ -1,6 +1,8 @@
 open util/boolean
 
 sig Char{}
+sig Name{}
+sig Surname{}
 sig Password{}
 sig Email{}
 sig DrivingLicence{}
@@ -8,7 +10,7 @@ sig CreditCard{}
 sig PhoneNumber{}
 sig Ssn{}
 
-sig Position {}
+abstract sig Position {} 
 
 abstract sig CarState {}
 one sig Available, Unavailable, OutOfOrder extends CarState {}
@@ -50,13 +52,17 @@ fact AvailableCarsMustBeInASafeArea{
 }
 
 sig RegistrationInfo {
-	ssn: Ssn,
-	name: seq Char,
-	surname: seq Char,
-	phoneNumber: PhoneNumber,
-	email: Email,
-	creditCardNumber: CreditCard,
-	drivingLicenceNumber: DrivingLicence
+	ssn: one Ssn,
+	name: one Name,
+	surname: one Surname,
+	phoneNumber: one PhoneNumber,
+	email: one Email,
+	creditCardNumber: one CreditCard,
+	drivingLicenceNumber: one DrivingLicence
+}
+
+fact AllRegistrationInfoAreRelatedToOneUser{
+	all ri: RegistrationInfo | (one u: User | u.registrationInfo=ri)
 }
 
 fact PersonsCannotSignUpTwice{
@@ -71,7 +77,7 @@ fact SomeInfoCanBePartAtMostOfOneRegistation{
 }
 
 sig User {
-	password: seq Char,
+	password: one Password,
 	position: one Position,
 	registrationInfo: one RegistrationInfo
 }
@@ -96,11 +102,28 @@ sig SafeArea {
 	#positions>=1
 }
 
+//the set of positions in the range of 3 km from a power station
+sig NonFineArea{
+	positions: set Position
+}{
+	some pos: positions | (one ps: PowerStation | ps.position=pos)
+	all pos: positions | (one sa: SafeArea | pos in sa.positions)
+}
+
+fact AllPowerStationsAreInANonFineArea{
+	all ps: PowerStation | some nfa: NonFineArea | ps.position in nfa.positions
+}
+
 sig PowerStation {
 	position: one Position,
 	available: Bool
 }{
 	available.isFalse <=> (one c: Car | c.position=position && c.inCharge.isTrue) //a power grid station is unavailable when a car position matches its poisiton and tha car is in charge
+}
+
+
+fact PowerStationsMustBeInASafeArea{
+	all ps: PowerStation | (one sa: SafeArea | ps.position in sa.positions)
 }
 
 fact DifferentPowerStationsHaveDifferentPositions {
@@ -194,6 +217,10 @@ assert RunningCarsCannotBeInCharge{
 	no car: Car | car.inCharge.isTrue && (one ride: Ride | ride.terminated.isFalse && ride.reservation.reservedCar=car)
 }
 
+assert CarsInChargingAreInANonFineArea{
+	all car:Car | car.inCharge.isTrue => (some nfa: NonFineArea | car.position in nfa.positions)
+}
+
 pred MoneySavingOptionBonusAchieved(r: Ride){
 	r.terminated.isTrue &&
 	r.moneySavingOptionActivated.isTrue &&
@@ -208,40 +235,60 @@ pred ChargingBonusAchieved(r:Ride){
 	r.accidentReport=none
 }
 
+pred FineForParkingInAFineArea(r: Ride){
+	r.terminated.isTrue &&
+	r.accidentReport=none &&
+	no nfa: NonFineArea | r.endRidePosition in nfa.positions
+}
+
 pred PassengersBonusAchieved(r: Ride){
 	r.terminated.isTrue &&
 	r.passengers>=2 &&
 	r.accidentReport=none &&
+	one nfa: NonFineArea | r.endRidePosition in nfa.positions &&
 	(one medium: Medium | medium in r.endRideBatteryLevel)
 }
 
 pred HighBatteryBonusAchieved(r: Ride){
 	r.terminated.isTrue &&
 	r.endRideIsInCharge.isFalse &&
-	one high: High| high in r.endRideBatteryLevel
+	one nfa: NonFineArea | r.endRidePosition in nfa.positions &&
+	one high: High| high in r.endRideBatteryLevel &&
+	r.accidentReport=none
 }
 
 pred FineForLowBattery(r:Ride){
 	r.terminated.isTrue &&
 	r.endRideIsInCharge.isFalse &&
-	one low:Low | low in r.endRideBatteryLevel
+	one low:Low | low in r.endRideBatteryLevel &&
+	r.accidentReport=none
 }
 
-pred show {
-	#User=3
-	#Car=3
-	#SafeArea=2
-	#Ride=1
-	#PowerStation=1
-	#MoneySavingOption=1
-	some car: Car | no out: OutOfOrder | out in car.carState
-	some car: Car | one out: Unavailable | out in car.carState
-	some res: Reservation | res.expired.isFalse
+pred showPred1{
+	one ride: Ride | MoneySavingOptionBonusAchieved[ride] &&
+	one ride: Ride | ChargingBonusAchieved[ride]
+}
+
+pred showPred2{
+	one ride: Ride | FineForParkingInAFineArea[ride] &&
+	one ride: Ride | PassengersBonusAchieved[ride]
+}
+
+pred showPred3{
+	one ride: Ride | HighBatteryBonusAchieved[ride] &&
+	one ride: Ride | FineForLowBattery[ride]
 }
  
-//check RunningCarsCannotBeInCharge
-run FineForLowBattery
-	
+run showPred1
+run showPred2
+run showPred3
+check RunningsRidesAndReservationsCannotInvolveAvailableOrOutOfOrderCars
+check UnavailableCarsAreRunningOrReserved
+check PowerStationsBelongToOneSafeAre
+check NumberOfReservationsGreaterOrEqualThenNumberOfRides
+check ACarCannotBeInvolvedInTwoNonTerminatedRides
+check ReservedCarsCannotBeInvolvedInANonTerminatedRide
+check RunningCarsCannotBeInCharge
 	
 	
 	
