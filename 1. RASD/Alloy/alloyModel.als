@@ -118,7 +118,7 @@ sig PowerStation {
 	position: one Position,
 	available: Bool
 }{
-	available.isFalse <=> (one c: Car | c.position=position && c.inCharge.isTrue) //a power grid station is unavailable when a car position matches its poisiton and tha car is in charge
+	available.isFalse <=> (one c: Car | c.position=position && c.inCharge.isTrue) //a power grid station is unavailable when a car position matches its poisiton and the car is in charge
 }
 
 
@@ -141,20 +141,20 @@ sig Ride {
 	endRideIsInCharge: one Bool,
 	moneySavingOptionActivated: Bool,
 	moneySavingOptionInfo: lone MoneySavingOption,
-	accidentReport: lone AccidentReport //after an accident report occours the ride ends
+	accidentReport: Bool //after an accident report occours the ride ends
 }{
 	duration>0
 	passengers>0
 	passengers<=5
 	totalPrice>0
-	(moneySavingOptionInfo=none) <=> moneySavingOptionActivated.isFalse //money saving option info are present only if the opton has been activated
+	(moneySavingOptionInfo=none) <=> moneySavingOptionActivated.isFalse //money saving option info are present only if the option has been activated
 	terminated.isFalse => (one unavailable: Unavailable | unavailable in reservation.reservedCar.carState) && (reservation.reservedCar.inCharge.isFalse) //the car is unavailable during the ride and cannot be in charge
 	(endRidePosition != none) <=> terminated.isTrue //end ride position is saved only once the ride has been terminated
-	(accidentReport = none && terminated.isTrue) => (one sa: SafeArea | endRidePosition in sa.positions) //in order to terminate the ride the car must me parked in a safe area unless an accident occurs
-	(accidentReport != none) => terminated.isTrue //the accident report implies the termination of the ride
+	(accidentReport.isFalse && terminated.isTrue) => (one sa: SafeArea | endRidePosition in sa.positions) //in order to terminate the ride the car must be parked in a safe area unless an accident occurs
+	(accidentReport.isTrue) => terminated.isTrue //the accident report implies the termination of the ride
 	reservation.expired.isTrue //since the ride exists, the respective reservation is terminated
 	terminated.isTrue => (endRidePosition!=none && endRideBatteryLevel!=none && endRideIsInCharge!=none) //whenever a ride is terminated all the field releted to the end of the ride are not empty
-	endRideIsInCharge.isTrue => (one ps:PowerStation | endRidePosition=ps.position)
+	endRideIsInCharge.isTrue => (one ps:PowerStation | endRidePosition=ps.position) //if the car result in charge at the end of the ride then its position at the end of that ride matches that of a power station
 }
 
 fact OneReservationIsRelatedAtMostToOneRide{
@@ -171,14 +171,6 @@ sig MoneySavingOption {
 
 fact EveryMoneySavingOptionBelongsExactlyToOneRide{
 	all mso: MoneySavingOption | one r: Ride | r.moneySavingOptionInfo=mso
-}
-
-sig AccidentReport {
-	description: seq Char
-}
-
-fact AccidentReportMustBeRelatedToAnAccident {
-	all ar: AccidentReport | one ride:Ride | ride.accidentReport=ar
 }
 
 fact UsersCanJustRideOncePerTime {
@@ -226,25 +218,25 @@ pred MoneySavingOptionBonusAchieved(r: Ride){
 	r.moneySavingOptionActivated.isTrue &&
 	r.moneySavingOptionInfo.selectedPowerStation.position=r.endRidePosition &&
 	r.endRideIsInCharge.isTrue &&
-	r.accidentReport=none
+	r.accidentReport.isFalse
 }
 
 pred ChargingBonusAchieved(r:Ride){
 	r.terminated.isTrue &&
 	r.endRideIsInCharge.isTrue &&
-	r.accidentReport=none
+	r.accidentReport.isFalse
 }
 
 pred FineForParkingInAFineArea(r: Ride){
 	r.terminated.isTrue &&
-	r.accidentReport=none &&
+	r.accidentReport.isFalse &&
 	no nfa: NonFineArea | r.endRidePosition in nfa.positions
 }
 
 pred PassengersBonusAchieved(r: Ride){
 	r.terminated.isTrue &&
 	r.passengers>=2 &&
-	r.accidentReport=none &&
+	r.accidentReport.isFalse &&
 	one nfa: NonFineArea | r.endRidePosition in nfa.positions &&
 	(one medium: Medium | medium in r.endRideBatteryLevel)
 }
@@ -254,14 +246,14 @@ pred HighBatteryBonusAchieved(r: Ride){
 	r.endRideIsInCharge.isFalse &&
 	one nfa: NonFineArea | r.endRidePosition in nfa.positions &&
 	one high: High| high in r.endRideBatteryLevel &&
-	r.accidentReport=none
+	r.accidentReport.isFalse
 }
 
 pred FineForLowBattery(r:Ride){
 	r.terminated.isTrue &&
 	r.endRideIsInCharge.isFalse &&
 	one low:Low | low in r.endRideBatteryLevel &&
-	r.accidentReport=none
+	r.accidentReport.isFalse
 }
 
 pred showPred1{
